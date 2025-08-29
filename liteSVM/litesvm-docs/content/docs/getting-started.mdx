@@ -1,0 +1,166 @@
+---
+title: Getting Started
+description: Install LiteSVM and write your first test in 2 minutes
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Getting Started
+
+Get up and running with LiteSVM in 2 minutes.
+
+<Steps>
+
+<Step>
+### Install LiteSVM
+
+Add LiteSVM to your dev dependencies:
+
+<Tabs items={['Basic', 'With SPL Tokens']}>
+<Tab value="Basic">
+```bash
+cargo add --dev litesvm
+```
+</Tab>
+<Tab value="With SPL Tokens">
+```bash
+cargo add --dev litesvm
+cargo add --dev litesvm-token
+```
+</Tab>
+</Tabs>
+</Step>
+
+<Step>
+### Write Your First Test
+
+Create a new test file and copy this code:
+
+```rust title="tests/my_first_test.rs"
+use litesvm::LiteSVM;
+use solana_sdk::signature::{Keypair, Signer};
+
+#[test]
+fn my_first_litesvm_test() {
+    // Create the test environment
+    let mut svm = LiteSVM::new();
+    
+    // Create a test account
+    let user = Keypair::new();
+    
+    // Give it some SOL (no network needed!)
+    svm.airdrop(&user.pubkey(), 1_000_000_000).unwrap();
+    
+    // Check the balance immediately
+    let balance = svm.get_balance(&user.pubkey()).unwrap();
+    assert_eq!(balance, 1_000_000_000);
+    
+    println!("✅ Account funded with {} SOL", balance as f64 / 1e9);
+}
+```
+</Step>
+
+<Step>
+### Run the Test
+
+```bash
+cargo test my_first_litesvm_test
+```
+
+You should see:
+```
+running 1 test
+test my_first_litesvm_test ... ok
+✅ Account funded with 1 SOL
+
+test result: ok. 1 passed; 0 failed
+```
+</Step>
+
+</Steps>
+
+<Callout type="info">
+  **That's it!** No validator process, no network delays, no cleanup needed. The test runs in milliseconds.
+</Callout>
+
+## Your Second Test: Send a Transaction
+
+Now let's do something more interesting - send SOL between accounts:
+
+```rust title="tests/transfer_test.rs"
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    system_instruction,
+    transaction::Transaction,
+};
+
+#[test]
+fn test_transfer() {
+    let mut svm = LiteSVM::new();
+    
+    // Create two accounts
+    let alice = Keypair::new();
+    let bob = Keypair::new();
+    
+    // Fund Alice
+    svm.airdrop(&alice.pubkey(), 2_000_000_000).unwrap();
+    
+    // Create transfer instruction
+    let transfer = system_instruction::transfer(
+        &alice.pubkey(),
+        &bob.pubkey(),
+        1_000_000_000, // 1 SOL
+    );
+    
+    // Build and sign transaction
+    let tx = Transaction::new_signed_with_payer(
+        &[transfer],
+        Some(&alice.pubkey()),
+        &[&alice],
+        svm.latest_blockhash(),
+    );
+    
+    // Send it (executes immediately!)
+    svm.send_transaction(tx).unwrap();
+    
+    // Check balances right away
+    assert_eq!(svm.get_balance(&bob.pubkey()).unwrap(), 1_000_000_000);
+    assert!(svm.get_balance(&alice.pubkey()).unwrap() < 1_000_000_000);
+    
+    println!("✅ Transfer successful!");
+}
+```
+
+## What Makes LiteSVM Different?
+
+<div className="grid gap-4 mt-6">
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">⚡ No External Process</h3>
+    <p className="text-sm text-muted-foreground">
+      Runs directly in your test process - no validator to start or stop
+    </p>
+  </div>
+  
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">🎯 Synchronous Execution</h3>
+    <p className="text-sm text-muted-foreground">
+      Everything happens immediately - no awaits, no delays, no polling
+    </p>
+  </div>
+  
+  <div className="border rounded-lg p-4">
+    <h3 className="font-semibold mb-2">🔍 Direct State Access</h3>
+    <p className="text-sm text-muted-foreground">
+      Read and write any account state directly for test setup
+    </p>
+  </div>
+</div>
+
+## Next Steps
+
+- **[Core Concepts →](/docs/core-concepts)** - Understand the mental model
+- **[API Reference →](/docs/api-reference)** - Learn the essential methods
+- **[Examples →](/docs/examples)** - Copy-paste solutions for common scenarios

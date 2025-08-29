@@ -1,10 +1,10 @@
 {
   "title": "Documentation",
   "pages": [
-    "index",
-    "quickstart",
-    "core-api",
+    "getting-started",
+    "core-concepts", 
+    "api-reference",
     "examples",
-    "reference"
+    "advanced"
   ]
 }
