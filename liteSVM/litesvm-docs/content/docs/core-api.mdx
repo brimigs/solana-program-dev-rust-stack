@@ -1,0 +1,254 @@
+---
+title: Core API
+description: The essential LiteSVM methods you'll use every day
+---
+
+# Core API
+
+The 6 essential methods that cover 90% of your testing needs.
+
+## new()
+
+Create a new test environment.
+
+```rust
+let mut svm = LiteSVM::new();
+```
+
+**Returns:** `LiteSVM` instance with default configuration  
+**Use when:** Starting any test
+
+---
+
+## airdrop()
+
+Add SOL to any account instantly.
+
+```rust
+svm.airdrop(&pubkey, 1_000_000_000)?; // 1 SOL
+```
+
+**Parameters:**
+- `pubkey: &Pubkey` - Account to fund
+- `lamports: u64` - Amount in lamports (1 SOL = 1_000_000_000)
+
+**Returns:** `Result<()>`  
+**Use when:** Funding accounts for transactions
+
+**Complete example:**
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::signature::{Keypair, Signer};
+
+#[test]
+fn test_airdrop() {
+    let mut svm = LiteSVM::new();
+    let user = Keypair::new();
+    
+    svm.airdrop(&user.pubkey(), 5_000_000_000).unwrap();
+    assert_eq!(svm.get_balance(&user.pubkey()).unwrap(), 5_000_000_000);
+}
+```
+
+---
+
+## add_program()
+
+Deploy a program to the test environment.
+
+```rust
+svm.add_program(program_id, &program_bytes)?;
+```
+
+**Parameters:**
+- `program_id: Pubkey` - Program's address
+- `program_bytes: &[u8]` - Compiled program (.so file)
+
+**Returns:** `Result<()>`  
+**Use when:** Testing programs that need deployment
+
+**Complete example:**
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::pubkey::Pubkey;
+
+#[test]
+fn test_add_program() {
+    let mut svm = LiteSVM::new();
+    
+    let program_id = Pubkey::new_unique();
+    let program_bytes = include_bytes!("../target/deploy/my_program.so");
+    
+    svm.add_program(program_id, program_bytes).unwrap();
+    // Program is deployed and ready
+}
+```
+
+---
+
+## send_transaction()
+
+Process a transaction immediately.
+
+```rust
+let result = svm.send_transaction(tx)?;
+```
+
+**Parameters:**
+- `tx: Transaction` - Signed transaction to execute
+
+**Returns:** `Result<TransactionMetadata>` with compute units, logs, and return data  
+**Use when:** Executing any transaction
+
+**Complete example:**
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_instruction,
+};
+
+#[test]
+fn test_send_transaction() {
+    let mut svm = LiteSVM::new();
+    
+    let sender = Keypair::new();
+    let receiver = Keypair::new();
+    svm.airdrop(&sender.pubkey(), 1_000_000_000).unwrap();
+    
+    let ix = system_instruction::transfer(
+        &sender.pubkey(),
+        &receiver.pubkey(),
+        500_000_000,
+    );
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&sender.pubkey()),
+        &[&sender],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    assert!(result.logs.len() > 0);
+}
+```
+
+---
+
+## get_balance()
+
+Check account balance.
+
+```rust
+let balance = svm.get_balance(&pubkey)?;
+```
+
+**Parameters:**
+- `pubkey: &Pubkey` - Account to check
+
+**Returns:** `Option<u64>` - Balance in lamports, None if account doesn't exist  
+**Use when:** Verifying transfers or account funding
+
+**Complete example:**
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::pubkey::Pubkey;
+
+#[test]
+fn test_get_balance() {
+    let mut svm = LiteSVM::new();
+    let account = Pubkey::new_unique();
+    
+    // Account doesn't exist
+    assert_eq!(svm.get_balance(&account), None);
+    
+    // After airdrop
+    svm.airdrop(&account, 1_000_000_000).unwrap();
+    assert_eq!(svm.get_balance(&account).unwrap(), 1_000_000_000);
+}
+```
+
+---
+
+## latest_blockhash()
+
+Get current blockhash for transactions.
+
+```rust
+let blockhash = svm.latest_blockhash();
+```
+
+**Returns:** `Hash` - Current blockhash  
+**Use when:** Creating any transaction
+
+**Complete example:**
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    message::Message,
+};
+
+#[test]
+fn test_latest_blockhash() {
+    let mut svm = LiteSVM::new();
+    let payer = Keypair::new();
+    
+    let tx = Transaction::new(
+        &[&payer],
+        Message::new(&[], Some(&payer.pubkey())),
+        svm.latest_blockhash(), // Always use latest
+    );
+    
+    // Transaction has valid blockhash
+}
+```
+
+---
+
+## Bonus Methods
+
+### get_account()
+Get full account data.
+```rust
+if let Some(account) = svm.get_account(&pubkey) {
+    println!("Owner: {}", account.owner);
+    println!("Data: {:?}", account.data);
+}
+```
+
+### set_account()
+Create any account state.
+```rust
+use solana_sdk::account::Account;
+
+svm.set_account(pubkey, Account {
+    lamports: 1_000_000,
+    data: vec![0; 100],
+    owner: system_program::id(),
+    executable: false,
+    rent_epoch: 0,
+}).unwrap();
+```
+
+### simulate_transaction()
+Test without state changes.
+```rust
+let result = svm.simulate_transaction(tx);
+// State is NOT modified
+```
+
+### warp_to_slot()
+Jump to future slot.
+```rust
+svm.warp_to_slot(1000);
+```
+
+## That's It!
+
+These methods cover 90% of testing needs. For more:
+- [Examples](/docs/examples) - Complete test files
+- [Reference](/docs/reference) - Advanced features

@@ -1,0 +1,478 @@
+---
+title: Examples
+description: Complete, copy-paste ready test files for common scenarios
+---
+
+# Examples
+
+Complete test files you can copy and run immediately.
+
+## Token Transfer
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_instruction,
+};
+
+#[test]
+fn test_token_transfer() {
+    let mut svm = LiteSVM::new();
+    
+    // Create accounts
+    let alice = Keypair::new();
+    let bob = Keypair::new();
+    
+    // Fund alice
+    svm.airdrop(&alice.pubkey(), 10_000_000_000).unwrap();
+    
+    // Transfer 1 SOL from alice to bob
+    let transfer_ix = system_instruction::transfer(
+        &alice.pubkey(),
+        &bob.pubkey(),
+        1_000_000_000,
+    );
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[transfer_ix],
+        Some(&alice.pubkey()),
+        &[&alice],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    
+    // Verify balances
+    assert_eq!(svm.get_balance(&bob.pubkey()).unwrap(), 1_000_000_000);
+    assert!(svm.get_balance(&alice.pubkey()).unwrap() < 9_000_000_000); // Less due to fees
+    
+    println!("✅ Transfer successful!");
+    println!("Compute units used: {}", result.compute_units_consumed);
+}
+```
+
+## Deploy and Call Program
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_program,
+};
+
+#[test]
+fn test_program_deployment_and_call() {
+    let mut svm = LiteSVM::new();
+    
+    // Deploy program
+    let program_id = Pubkey::new_unique();
+    let program_bytes = include_bytes!("../target/deploy/hello_world.so");
+    svm.add_program(program_id, program_bytes).unwrap();
+    
+    // Setup accounts
+    let payer = Keypair::new();
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+    
+    // Call program
+    let instruction = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer.pubkey(), true),
+        ],
+        data: vec![], // Empty data for hello world
+    };
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    
+    // Check logs for "Hello, World!"
+    assert!(result.logs.iter().any(|log| log.contains("Hello")));
+    println!("Program logs: {:?}", result.logs);
+}
+```
+
+## Create and Verify PDA
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    account::Account,
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_program,
+};
+
+#[test]
+fn test_pda_creation() {
+    let mut svm = LiteSVM::new();
+    
+    // Deploy program
+    let program_id = Pubkey::new_unique();
+    let program_bytes = include_bytes!("../target/deploy/pda_program.so");
+    svm.add_program(program_id, program_bytes).unwrap();
+    
+    // Derive PDA
+    let seed = b"my_pda";
+    let (pda, bump) = Pubkey::find_program_address(&[seed], &program_id);
+    
+    // Create PDA account manually for testing
+    svm.set_account(pda, Account {
+        lamports: 1_000_000,
+        data: vec![bump], // Store bump seed
+        owner: program_id,
+        executable: false,
+        rent_epoch: 0,
+    }).unwrap();
+    
+    // Setup payer
+    let payer = Keypair::new();
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+    
+    // Call program with PDA
+    let instruction = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(pda, false),
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: vec![bump], // Pass bump seed
+    };
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    assert!(result.logs.iter().any(|log| log.contains("PDA verified")));
+}
+```
+
+## Test Time-Locked Feature
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    clock::Clock,
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
+
+#[test]
+fn test_time_locked_withdraw() {
+    let mut svm = LiteSVM::new();
+    
+    // Deploy time-lock program
+    let program_id = Pubkey::new_unique();
+    let program_bytes = include_bytes!("../target/deploy/timelock.so");
+    svm.add_program(program_id, program_bytes).unwrap();
+    
+    // Setup
+    let user = Keypair::new();
+    let vault = Keypair::new();
+    svm.airdrop(&user.pubkey(), 10_000_000_000).unwrap();
+    
+    // Set unlock time to 1 hour from now
+    let mut clock: Clock = svm.get_sysvar();
+    let unlock_time = clock.unix_timestamp + 3600;
+    
+    // Create vault with timelock
+    let create_ix = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(vault.pubkey(), true),
+            AccountMeta::new(user.pubkey(), true),
+        ],
+        data: unlock_time.to_le_bytes().to_vec(),
+    };
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[create_ix],
+        Some(&user.pubkey()),
+        &[&user, &vault],
+        svm.latest_blockhash(),
+    );
+    
+    svm.send_transaction(tx).unwrap();
+    
+    // Try to withdraw immediately - should fail
+    let withdraw_ix = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(vault.pubkey(), false),
+            AccountMeta::new(user.pubkey(), true),
+        ],
+        data: vec![1], // Withdraw instruction
+    };
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[withdraw_ix.clone()],
+        Some(&user.pubkey()),
+        &[&user],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx);
+    assert!(result.is_err()); // Too early!
+    
+    // Time travel to after unlock time
+    svm.warp_to_slot(1000);
+    clock.unix_timestamp = unlock_time + 1;
+    svm.set_sysvar(&clock);
+    
+    // Try again - should succeed
+    let tx = Transaction::new_signed_with_payer(
+        &[withdraw_ix],
+        Some(&user.pubkey()),
+        &[&user],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    assert!(result.logs.iter().any(|log| log.contains("Withdrawn")));
+}
+```
+
+## Cross-Program Invocation (CPI)
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_program,
+};
+
+#[test]
+fn test_cross_program_invocation() {
+    let mut svm = LiteSVM::new();
+    
+    // Deploy both programs
+    let caller_program = Pubkey::new_unique();
+    let callee_program = Pubkey::new_unique();
+    
+    let caller_bytes = include_bytes!("../target/deploy/caller.so");
+    let callee_bytes = include_bytes!("../target/deploy/callee.so");
+    
+    svm.add_program(caller_program, caller_bytes).unwrap();
+    svm.add_program(callee_program, callee_bytes).unwrap();
+    
+    // Setup
+    let payer = Keypair::new();
+    let data_account = Keypair::new();
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+    
+    // Call program A, which will CPI to program B
+    let instruction = Instruction {
+        program_id: caller_program,
+        accounts: vec![
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new(data_account.pubkey(), true),
+            AccountMeta::new_readonly(callee_program, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: vec![0], // CPI instruction
+    };
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer, &data_account],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    
+    // Verify both programs executed
+    assert!(result.logs.iter().any(|log| log.contains("Caller program")));
+    assert!(result.logs.iter().any(|log| log.contains("Callee program")));
+    println!("CPI successful! Logs: {:?}", result.logs);
+}
+```
+
+## Test Error Handling
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::{Transaction, TransactionError},
+    system_instruction,
+};
+
+#[test]
+fn test_error_handling() {
+    let mut svm = LiteSVM::new();
+    
+    // Create account with insufficient funds
+    let poor_sender = Keypair::new();
+    let receiver = Keypair::new();
+    
+    // Only give enough for fees, not for transfer
+    svm.airdrop(&poor_sender.pubkey(), 10_000).unwrap();
+    
+    // Try to transfer 1 SOL (will fail)
+    let transfer_ix = system_instruction::transfer(
+        &poor_sender.pubkey(),
+        &receiver.pubkey(),
+        1_000_000_000,
+    );
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[transfer_ix],
+        Some(&poor_sender.pubkey()),
+        &[&poor_sender],
+        svm.latest_blockhash(),
+    );
+    
+    // Expect error
+    let result = svm.send_transaction(tx);
+    assert!(result.is_err());
+    
+    if let Err(e) = result {
+        // Check specific error
+        match e.err {
+            TransactionError::InsufficientFundsForFee => {
+                println!("✅ Caught expected error: Insufficient funds");
+            }
+            _ => panic!("Unexpected error: {:?}", e.err),
+        }
+        
+        // Check logs for debugging
+        println!("Error logs: {:?}", e.meta.logs);
+    }
+}
+```
+
+## Multiple Instructions in One Transaction
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_instruction,
+};
+
+#[test]
+fn test_multiple_instructions() {
+    let mut svm = LiteSVM::new();
+    
+    // Create accounts
+    let payer = Keypair::new();
+    let recipient1 = Keypair::new();
+    let recipient2 = Keypair::new();
+    let recipient3 = Keypair::new();
+    
+    // Fund payer
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+    
+    // Create multiple transfers in one transaction
+    let instructions = vec![
+        system_instruction::transfer(
+            &payer.pubkey(),
+            &recipient1.pubkey(),
+            1_000_000_000,
+        ),
+        system_instruction::transfer(
+            &payer.pubkey(),
+            &recipient2.pubkey(),
+            2_000_000_000,
+        ),
+        system_instruction::transfer(
+            &payer.pubkey(),
+            &recipient3.pubkey(),
+            3_000_000_000,
+        ),
+    ];
+    
+    let tx = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[&payer],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    
+    // Verify all transfers
+    assert_eq!(svm.get_balance(&recipient1.pubkey()).unwrap(), 1_000_000_000);
+    assert_eq!(svm.get_balance(&recipient2.pubkey()).unwrap(), 2_000_000_000);
+    assert_eq!(svm.get_balance(&recipient3.pubkey()).unwrap(), 3_000_000_000);
+    
+    println!("✅ All transfers successful in one transaction!");
+    println!("Total compute units: {}", result.compute_units_consumed);
+}
+```
+
+## Load Mainnet Account State
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    account::Account,
+    pubkey::Pubkey,
+};
+use std::str::FromStr;
+
+#[test]
+fn test_with_mainnet_state() {
+    let mut svm = LiteSVM::new();
+    
+    // Example: Load a mainnet token mint account
+    // First dump from mainnet:
+    // solana account EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --output json --url mainnet-beta > usdc.json
+    
+    // In test, create the account with mainnet state
+    let usdc_mint = Pubkey::from_str("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").unwrap();
+    
+    // Example mainnet account data (simplified)
+    let account = Account {
+        lamports: 1461600,
+        data: vec![1; 82], // Actual mint data would go here
+        owner: spl_token::id(),
+        executable: false,
+        rent_epoch: 361,
+    };
+    
+    svm.set_account(usdc_mint, account).unwrap();
+    
+    // Now you can test with real mainnet state
+    let account = svm.get_account(&usdc_mint).unwrap();
+    assert_eq!(account.owner, spl_token::id());
+    println!("✅ Mainnet account loaded successfully");
+}
+```
+
+## Tips
+
+- Every example is a complete test - copy and run
+- Always use `svm.latest_blockhash()` for transactions
+- Use `include_bytes!()` for programs - faster than file I/O
+- Check `result.logs` for debugging
+- Use `svm.warp_to_slot()` for time-based testing
+
+## Next Steps
+
+- [Core API](/docs/core-api) - Method reference
+- [Reference](/docs/reference) - Advanced features

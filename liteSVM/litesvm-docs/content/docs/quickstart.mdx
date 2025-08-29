@@ -1,0 +1,193 @@
+---
+title: Quick Start
+description: Everything you need to start testing with LiteSVM in one page
+---
+
+# Quick Start
+
+Everything you need to start testing with LiteSVM in 30 seconds.
+
+## 1. Install
+
+```bash
+cargo add --dev litesvm
+
+# Optional: Add if using SPL tokens
+cargo add --dev litesvm-token
+```
+
+## 2. Basic Test
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::signature::{Keypair, Signer};
+
+#[test]
+fn test_basic() {
+    // Create test environment
+    let mut svm = LiteSVM::new();
+    
+    // Create account and fund it
+    let user = Keypair::new();
+    svm.airdrop(&user.pubkey(), 1_000_000_000).unwrap();
+    
+    // Check balance
+    assert_eq!(svm.get_balance(&user.pubkey()).unwrap(), 1_000_000_000);
+}
+```
+
+## 3. Deploy a Program
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::pubkey::Pubkey;
+
+#[test]
+fn test_with_program() {
+    let mut svm = LiteSVM::new();
+    
+    // Deploy program from bytes
+    let program_id = Pubkey::new_unique();
+    let program_bytes = include_bytes!("../target/deploy/my_program.so");
+    svm.add_program(program_id, program_bytes).unwrap();
+    
+    // Program is ready to use
+}
+```
+
+## 4. Send a Transaction
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_instruction,
+};
+
+#[test]
+fn test_transaction() {
+    let mut svm = LiteSVM::new();
+    
+    // Setup accounts
+    let sender = Keypair::new();
+    let receiver = Keypair::new();
+    svm.airdrop(&sender.pubkey(), 1_000_000_000).unwrap();
+    
+    // Create transaction
+    let instruction = system_instruction::transfer(
+        &sender.pubkey(),
+        &receiver.pubkey(),
+        500_000_000,
+    );
+    
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&sender.pubkey()),
+        &[&sender],
+        svm.latest_blockhash(),
+    );
+    
+    // Send and check immediately
+    let result = svm.send_transaction(tx).unwrap();
+    assert_eq!(svm.get_balance(&receiver.pubkey()).unwrap(), 500_000_000);
+}
+```
+
+## 5. Check Results
+
+```rust
+// Check transaction result
+match svm.send_transaction(tx) {
+    Ok(meta) => {
+        println!("Compute units: {}", meta.compute_units_consumed);
+        println!("Logs: {:?}", meta.logs);
+    }
+    Err(e) => {
+        println!("Error: {:?}", e);
+    }
+}
+```
+
+## Complete Working Example
+
+Copy this entire test file and run it:
+
+```rust
+use litesvm::LiteSVM;
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+    system_program,
+};
+
+#[test]
+fn test_my_program() {
+    // 1. Setup
+    let mut svm = LiteSVM::new();
+    
+    // 2. Deploy program
+    let program_id = Pubkey::new_unique();
+    let program_bytes = include_bytes!("../target/deploy/my_program.so");
+    svm.add_program(program_id, program_bytes).unwrap();
+    
+    // 3. Create accounts
+    let payer = Keypair::new();
+    let data_account = Keypair::new();
+    
+    // 4. Fund payer
+    svm.airdrop(&payer.pubkey(), 10_000_000_000).unwrap();
+    
+    // 5. Create instruction
+    let instruction = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new(data_account.pubkey(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: vec![0], // Your instruction data
+    };
+    
+    // 6. Send transaction
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        svm.latest_blockhash(),
+    );
+    
+    let result = svm.send_transaction(tx).unwrap();
+    
+    // 7. Verify
+    println!("✅ Transaction successful!");
+    println!("Compute units used: {}", result.compute_units_consumed);
+}
+```
+
+## Common Options
+
+```rust
+// Disable signature verification for faster tests
+let mut svm = LiteSVM::default()
+    .with_sigverify(false);
+
+// Increase compute budget
+use solana_program_runtime::compute_budget::ComputeBudget;
+let mut svm = LiteSVM::default()
+    .with_compute_budget(ComputeBudget {
+        compute_unit_limit: 1_400_000,
+        ..ComputeBudget::default()
+    });
+
+// Time travel
+svm.warp_to_slot(1000);
+```
+
+## Next Steps
+
+- [Core API](/docs/core-api) - Essential methods reference
+- [Examples](/docs/examples) - Complete test files for common scenarios
+- [Reference](/docs/reference) - Advanced features and troubleshooting
