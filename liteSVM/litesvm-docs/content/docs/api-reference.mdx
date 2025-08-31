@@ -88,30 +88,17 @@ Deploys a program to the test environment.
 svm.add_program(program_id, &bytes)?;
 ```
 
-<Tabs items={['From Bytes', 'From File', 'Include at Compile']}>
-<Tab value="From Bytes">
+Since the initial test environment only includes builtin programs, you will need to deploy any other program needed for your tests to run.
+
+To deploy a program that you wrote, follow this:
+
 ```rust
-let program_id = Pubkey::new_unique();
-let bytes = get_program_bytes();
+use crate::{self as <PROGRAM_NAME>};
+
+let program_id = <PROGRAM_NAME>::ID;
+let bytes = std::fs::read("target/deploy/<PROGRAM_NAME>.so")?;
 svm.add_program(program_id, &bytes)?;
 ```
-</Tab>
-<Tab value="From File">
-```rust
-let program_id = Pubkey::new_unique();
-let bytes = std::fs::read("target/deploy/program.so")?;
-svm.add_program(program_id, &bytes)?;
-```
-</Tab>
-<Tab value="Include at Compile">
-```rust
-// Best for tests - no runtime I/O
-let program_id = Pubkey::new_unique();
-let bytes = include_bytes!("../target/deploy/program.so");
-svm.add_program(program_id, bytes)?;
-```
-</Tab>
-</Tabs>
 
 <Callout>
   Programs are immediately available after `add_program()` - no deployment transaction needed.

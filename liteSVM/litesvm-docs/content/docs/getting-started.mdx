@@ -34,6 +34,16 @@ cargo add --dev litesvm-token
 </Step>
 
 <Step>
+### Install Additional Dependencies
+
+Several Solana crates enhance the testing experience by providing essential types and utilities:
+
+```bash
+cargo add solana-precompiles solana-account solana-pubkey solana-feature-set solana-program solana-sdk --dev
+```
+</Step>
+
+<Step>
 ### Write Your First Test
 
 Create a new test file and copy this code:
@@ -133,31 +143,6 @@ fn test_transfer() {
     println!("✅ Transfer successful!");
 }
 ```
-
-## What Makes LiteSVM Different?
-
-<div className="grid gap-4 mt-6">
-  <div className="border rounded-lg p-4">
-    <h3 className="font-semibold mb-2">⚡ No External Process</h3>
-    <p className="text-sm text-muted-foreground">
-      Runs directly in your test process - no validator to start or stop
-    </p>
-  </div>
-  
-  <div className="border rounded-lg p-4">
-    <h3 className="font-semibold mb-2">🎯 Synchronous Execution</h3>
-    <p className="text-sm text-muted-foreground">
-      Everything happens immediately - no awaits, no delays, no polling
-    </p>
-  </div>
-  
-  <div className="border rounded-lg p-4">
-    <h3 className="font-semibold mb-2">🔍 Direct State Access</h3>
-    <p className="text-sm text-muted-foreground">
-      Read and write any account state directly for test setup
-    </p>
-  </div>
-</div>
 
 ## Next Steps
 
