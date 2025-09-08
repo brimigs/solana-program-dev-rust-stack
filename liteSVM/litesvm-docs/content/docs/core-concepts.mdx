@@ -3,21 +3,18 @@ title: Core Concepts
 description: Understanding how LiteSVM works and why it's different
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-
-Understanding these concepts will help you write better tests faster.
+import { Callout } from "fumadocs-ui/components/callout";
 
 ## The Mental Model
 
-<Callout>
-  **Think of LiteSVM as a Solana VM running inside your test function.** 
-  
-  Not as a separate process, not as a network service - it's just a library call in your code.
-</Callout>
+Think of LiteSVM as a Solana VM running inside your test function. Not as
+a separate process, not as a network service - it's just a library call in
+your code.
 
 ### Traditional Testing
+
 ```rust
-// ❌ Traditional approach - slow and complex
+// Traditional approach - slow and complex
 let validator = TestValidator::new(); // Starts separate process
 let client = RpcClient::new(validator.url()); // Network connection
 
@@ -27,13 +24,13 @@ thread::sleep(Duration::from_secs(1)); // Wait for confirmation
 ```
 
 ### LiteSVM Testing
-```rust  
-// ✅ LiteSVM - fast and simple
+
+```rust
+// LiteSVM - fast and simple
 let mut svm = LiteSVM::new(); // Just a struct in memory
 
 // Everything is synchronous and immediate
 let balance = svm.get_balance(&pubkey)?;
-// No waiting needed!
 ```
 
 ## Key Principles
@@ -121,13 +118,13 @@ fn test_something() {
 #[test]
 fn test_state_change() {
     let mut svm = LiteSVM::new();
-    
+
     // Capture initial state
     let before = svm.get_account(&pubkey);
-    
+
     // Execute operation
     svm.send_transaction(tx)?;
-    
+
     // Verify state changed
     let after = svm.get_account(&pubkey);
     assert_ne!(before, after);
@@ -140,14 +137,14 @@ fn test_state_change() {
 #[test]
 fn test_error_handling() {
     let mut svm = LiteSVM::new();
-    
+
     // Set up invalid state
     let tx = create_invalid_transaction();
-    
+
     // Verify it fails as expected
     let result = svm.send_transaction(tx);
     assert!(result.is_err());
-    
+
     if let Err(e) = result {
         assert_eq!(e.err, TransactionError::InsufficientFunds);
     }
@@ -158,15 +155,9 @@ fn test_error_handling() {
 
 <div className="space-y-4 mt-6">
 
-**✅ DO:**
 - Reuse `LiteSVM` instances when testing multiple scenarios
 - Use `include_bytes!` for program binaries
 - Keep test data small and focused
-
-**❌ DON'T:**
-- Create new `LiteSVM` for every assertion
-- Load programs from disk repeatedly
-- Test with unnecessarily large accounts
 
 </div>
 
@@ -174,5 +165,6 @@ fn test_error_handling() {
 
 Now that you understand the concepts:
 
+- **[Testing Your Program →](/docs/testing-your-program)** - Learn how to test your own Solana program
 - **[API Reference →](/docs/api-reference)** - Master the 6 essential methods
 - **[Examples →](/docs/examples)** - See these concepts in action

@@ -1,15 +1,13 @@
 ---
 title: Getting Started
-description: Install LiteSVM and write your first test in 2 minutes
+description: Install LiteSVM and write your first test
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Steps, Step } from 'fumadocs-ui/components/steps';
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
-# Getting Started
-
-Get up and running with LiteSVM in 2 minutes.
+# Quick Start Guide
 
 <Steps>
 
@@ -18,13 +16,13 @@ Get up and running with LiteSVM in 2 minutes.
 
 Add LiteSVM to your dev dependencies:
 
-<Tabs items={['Basic', 'With SPL Tokens']}>
+<Tabs items={['Basic', 'With SPL Token Support']}>
 <Tab value="Basic">
 ```bash
 cargo add --dev litesvm
 ```
 </Tab>
-<Tab value="With SPL Tokens">
+<Tab value="With SPL Token Support">
 ```bash
 cargo add --dev litesvm
 cargo add --dev litesvm-token
@@ -41,6 +39,7 @@ Several Solana crates enhance the testing experience by providing essential type
 ```bash
 cargo add solana-precompiles solana-account solana-pubkey solana-feature-set solana-program solana-sdk --dev
 ```
+
 </Step>
 
 <Step>
@@ -56,20 +55,21 @@ use solana_sdk::signature::{Keypair, Signer};
 fn my_first_litesvm_test() {
     // Create the test environment
     let mut svm = LiteSVM::new();
-    
+
     // Create a test account
     let user = Keypair::new();
-    
-    // Give it some SOL (no network needed!)
+
+    // Fund the account with SOL
     svm.airdrop(&user.pubkey(), 1_000_000_000).unwrap();
-    
-    // Check the balance immediately
+
+    // Check the balance
     let balance = svm.get_balance(&user.pubkey()).unwrap();
     assert_eq!(balance, 1_000_000_000);
-    
-    println!("✅ Account funded with {} SOL", balance as f64 / 1e9);
+
+    println!("Account funded with {} SOL", balance as f64 / 1e9);
 }
 ```
+
 </Step>
 
 <Step>
@@ -80,24 +80,27 @@ cargo test my_first_litesvm_test
 ```
 
 You should see:
+
 ```
 running 1 test
 test my_first_litesvm_test ... ok
-✅ Account funded with 1 SOL
+Account funded with 1 SOL
 
 test result: ok. 1 passed; 0 failed
 ```
+
 </Step>
 
 </Steps>
 
-<Callout type="info">
-  **That's it!** No validator process, no network delays, no cleanup needed. The test runs in milliseconds.
+<br />
+
+<Callout type="success">
+  **That's it!** You just made your first litesvm test, that covers creating an
+  account and funding it.
 </Callout>
 
-## Your Second Test: Send a Transaction
-
-Now let's do something more interesting - send SOL between accounts:
+## Up Next: Send a Transaction
 
 ```rust title="tests/transfer_test.rs"
 use litesvm::LiteSVM;
@@ -110,21 +113,21 @@ use solana_sdk::{
 #[test]
 fn test_transfer() {
     let mut svm = LiteSVM::new();
-    
+
     // Create two accounts
     let alice = Keypair::new();
     let bob = Keypair::new();
-    
+
     // Fund Alice
     svm.airdrop(&alice.pubkey(), 2_000_000_000).unwrap();
-    
+
     // Create transfer instruction
     let transfer = system_instruction::transfer(
         &alice.pubkey(),
         &bob.pubkey(),
         1_000_000_000, // 1 SOL
     );
-    
+
     // Build and sign transaction
     let tx = Transaction::new_signed_with_payer(
         &[transfer],
@@ -132,17 +135,22 @@ fn test_transfer() {
         &[&alice],
         svm.latest_blockhash(),
     );
-    
-    // Send it (executes immediately!)
+
+    // Send it (execution happens immediately)
     svm.send_transaction(tx).unwrap();
-    
-    // Check balances right away
+
+    // Check new balances
     assert_eq!(svm.get_balance(&bob.pubkey()).unwrap(), 1_000_000_000);
     assert!(svm.get_balance(&alice.pubkey()).unwrap() < 1_000_000_000);
-    
-    println!("✅ Transfer successful!");
+
+    println!("Transfer successful!");
 }
 ```
+
+<Callout type="success">
+  **Test complete!** This test covers executing the transfer instruction from
+  the system program.
+</Callout>
 
 ## Next Steps
 

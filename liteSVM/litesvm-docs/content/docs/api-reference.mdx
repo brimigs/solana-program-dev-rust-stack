@@ -1,25 +1,21 @@
 ---
-title: API Reference
+title: Basic API Methods
 description: The essential LiteSVM methods you need to know
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
-
-# API Reference
-
-The 6 essential methods that cover 90% of your testing needs.
+import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Quick Reference
 
-| Method | Purpose | Returns |
-|--------|---------|---------|
-| `new()` | Create test environment | `LiteSVM` |
-| `airdrop()` | Fund accounts with SOL | `Result<()>` |
-| `add_program()` | Deploy a program | `Result<()>` |
-| `send_transaction()` | Execute transaction | `Result<TransactionMetadata>` |
-| `get_balance()` | Check account balance | `Option<u64>` |
-| `get_account()` | Get full account data | `Option<Account>` |
+| Method               | Purpose                 | Returns                    |
+| -------------------- | ----------------------- | -------------------------- |
+| `new()`              | Create test environment | `LiteSVM`                  |
+| `airdrop()`          | Fund accounts with SOL  | `TransactionResult`        |
+| `add_program()`      | Deploy a program        | `Result<(), LiteSVMError>` |
+| `send_transaction()` | Execute transaction     | `TransactionResult`        |
+| `get_balance()`      | Check account balance   | `Option<u64>`              |
+| `get_account()`      | Get full account data   | `Option<Account>`          |
 
 ## Setup Methods
 
@@ -32,6 +28,7 @@ let mut svm = LiteSVM::new();
 ```
 
 **What it includes:**
+
 - All native programs (System, BPF Loader, etc.)
 - Default sysvars (Clock, Rent, etc.)
 - Compute budget of 200,000 units
@@ -48,23 +45,23 @@ let mut svm = LiteSVM::new();
 Instantly funds any account with SOL.
 
 ```rust
-svm.airdrop(&pubkey, lamports)?;
+svm.airdrop(&pubkey, lamports).unwrap();
 ```
 
 <Tabs items={['Basic Usage', 'Common Amounts', 'Multiple Accounts']}>
 <Tab value="Basic Usage">
 ```rust
 let user = Keypair::new();
-svm.airdrop(&user.pubkey(), 1_000_000_000)?; // 1 SOL
+svm.airdrop(&user.pubkey(), 1_000_000_000).unwrap(); // 1 SOL
 ```
 </Tab>
 <Tab value="Common Amounts">
 ```rust
 // Common amounts for testing
-svm.airdrop(&user.pubkey(), 1)?;                    // 1 lamport
-svm.airdrop(&user.pubkey(), 1_000_000)?;           // 0.001 SOL  
-svm.airdrop(&user.pubkey(), 1_000_000_000)?;       // 1 SOL
-svm.airdrop(&user.pubkey(), 10_000_000_000)?;      // 10 SOL
+svm.airdrop(&user.pubkey(), 1).unwrap();                    // 1 lamport
+svm.airdrop(&user.pubkey(), 1_000_000).unwrap();           // 0.001 SOL  
+svm.airdrop(&user.pubkey(), 1_000_000_000).unwrap();       // 1 SOL
+svm.airdrop(&user.pubkey(), 10_000_000_000).unwrap();      // 10 SOL
 ```
 </Tab>
 <Tab value="Multiple Accounts">
@@ -72,7 +69,7 @@ svm.airdrop(&user.pubkey(), 10_000_000_000)?;      // 10 SOL
 // Fund multiple accounts
 let accounts = vec![Keypair::new(), Keypair::new(), Keypair::new()];
 for account in &accounts {
-    svm.airdrop(&account.pubkey(), 1_000_000_000)?;
+    svm.airdrop(&account.pubkey(), 1_000_000_000).unwrap();
 }
 ```
 </Tab>
@@ -85,7 +82,7 @@ for account in &accounts {
 Deploys a program to the test environment.
 
 ```rust
-svm.add_program(program_id, &bytes)?;
+svm.add_program(program_id, &bytes).unwrap();
 ```
 
 Since the initial test environment only includes builtin programs, you will need to deploy any other program needed for your tests to run.
@@ -93,15 +90,14 @@ Since the initial test environment only includes builtin programs, you will need
 To deploy a program that you wrote, follow this:
 
 ```rust
-use crate::{self as <PROGRAM_NAME>};
-
-let program_id = <PROGRAM_NAME>::ID;
-let bytes = std::fs::read("target/deploy/<PROGRAM_NAME>.so")?;
-svm.add_program(program_id, &bytes)?;
+let program_id = Pubkey::new_unique(); // Or your program's actual ID
+let bytes = include_bytes!("../target/deploy/my_program.so");
+svm.add_program(program_id, bytes).unwrap();
 ```
 
 <Callout>
-  Programs are immediately available after `add_program()` - no deployment transaction needed.
+  Programs are immediately available after `add_program()` - no deployment
+  transaction needed.
 </Callout>
 
 ## Transaction Methods
@@ -111,19 +107,22 @@ svm.add_program(program_id, &bytes)?;
 Executes a transaction and returns detailed results.
 
 ```rust
-let result = svm.send_transaction(tx)?;
+let result = svm.send_transaction(tx).unwrap();
 ```
 
-**Returns `TransactionMetadata`:**
+**Returns `TransactionMetadata` on success:**
+
 ```rust
 pub struct TransactionMetadata {
     pub compute_units_consumed: u64,  // How many CUs used
     pub logs: Vec<String>,            // Program logs
     pub return_data: (Pubkey, Vec<u8>), // Return data if any
+    pub inner_instructions: Vec<InnerInstructions>, // Inner instructions
 }
 ```
 
 **Example with error handling:**
+
 ```rust
 match svm.send_transaction(tx) {
     Ok(meta) => {
@@ -144,10 +143,11 @@ match svm.send_transaction(tx) {
 Returns account balance in lamports.
 
 ```rust
-let balance = svm.get_balance(&pubkey)?;
+let balance = svm.get_balance(&pubkey);
 ```
 
 **Common usage:**
+
 ```rust
 // Check if account exists and has funds
 if let Some(balance) = svm.get_balance(&pubkey) {
@@ -166,6 +166,7 @@ let account = svm.get_account(&pubkey);
 ```
 
 **Returns `Account`:**
+
 ```rust
 pub struct Account {
     pub lamports: u64,        // Balance
@@ -177,6 +178,7 @@ pub struct Account {
 ```
 
 **Example - Reading token account:**
+
 ```rust
 use spl_token::state::Account as TokenAccount;
 
@@ -187,47 +189,7 @@ if let Some(account) = svm.get_account(&token_account_pubkey) {
 }
 ```
 
-## Advanced Methods
-
-### `set_account()`
-
-Directly set any account state (testing only).
-
-```rust
-svm.set_account(pubkey, account)?;
-```
-
-**Example - Create pre-funded token account:**
-```rust
-use spl_token::state::{Account as TokenAccount, AccountState};
-
-let token_account = TokenAccount {
-    mint,
-    owner,
-    amount: 1_000_000,
-    state: AccountState::Initialized,
-    // ... other fields
-};
-
-let mut data = vec![0u8; TokenAccount::LEN];
-TokenAccount::pack(token_account, &mut data)?;
-
-svm.set_account(token_pubkey, Account {
-    lamports: 2_039_280,  // Rent-exempt amount
-    data,
-    owner: spl_token::id(),
-    executable: false,
-    rent_epoch: 0,
-})?;
-```
-
-### `warp_to_slot()`
-
-Jump to any slot instantly.
-
-```rust
-svm.warp_to_slot(1000);
-```
+## Utility Methods
 
 ### `latest_blockhash()`
 
@@ -240,6 +202,7 @@ let blockhash = svm.latest_blockhash();
 ## Common Patterns
 
 ### Transaction Building Pattern
+
 ```rust
 let tx = Transaction::new_signed_with_payer(
     &[instruction],
@@ -250,6 +213,7 @@ let tx = Transaction::new_signed_with_payer(
 ```
 
 ### Error Checking Pattern
+
 ```rust
 let result = svm.send_transaction(tx);
 assert!(result.is_err());
@@ -260,9 +224,10 @@ assert_eq!(
 ```
 
 ### Balance Assertion Pattern
+
 ```rust
 let before = svm.get_balance(&account).unwrap_or(0);
-svm.send_transaction(tx)?;
+svm.send_transaction(tx).unwrap();
 let after = svm.get_balance(&account).unwrap_or(0);
 assert_eq!(after - before, expected_change);
 ```

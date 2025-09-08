@@ -6,33 +6,6 @@ them execute much faster.
 It handles the complexity of managing accounts, deploying programs, and processing transactions behind a simple API. The framework automatically manages blockchain state between transactions, so you don't need to manually track account
 changes or balances. This makes LiteSVM particularly well-suited for integration tests where you need to simulate realistic transaction flows and verify program behavior across multiple operations.
 
-## Installation
-
-```shell
-cargo add --dev litesvm
-```
-
-If using spl-tokens in your program, also install the `litesvm-token` crate,
-
-```shell
-cargo add --dev litesvm-token
-```
-
-This additional crate includes helpers for working with LiteSVM and spl-tokens.
-
-## Basic Setup
-
-### Create a Test Environment
-
-```rust
-use litesvm::LiteSVM;
-
-#[test]
-fn test_basic_setup(){
-    let mut svm = LiteSVM::new();
-}
-```
-
 This creates a the basic test environment, which includes all runtime features enabled, default sysvars, precompiles, spl programs, sigverify, and all built in programs like the system program.
 
 ### Custom Configuration

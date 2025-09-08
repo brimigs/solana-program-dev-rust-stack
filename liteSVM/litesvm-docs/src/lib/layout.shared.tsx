@@ -18,14 +18,6 @@ export function baseOptions(): BaseLayoutProps {
         text: 'GitHub',
         url: 'https://github.com/LiteSVM/litesvm',
       },
-      {
-        text: 'LiteSVM Crate',
-        url: 'https://crates.io/crates/litesvm',
-      },
-      {
-        text: 'LiteSVM-Token Crate',
-        url: 'https://crates.io/crates/litesvm-token',
-      },
     ],
   };
 }

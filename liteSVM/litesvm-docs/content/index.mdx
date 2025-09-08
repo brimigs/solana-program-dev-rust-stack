@@ -40,24 +40,54 @@ import { Steps, Step } from "fumadocs-ui/components/steps";
   </div>
 </div>
 
-<h2 className="text-3xl font-bold text-left px-6 mb-8 bg-gradient-to-r from-[#14F195] to-[#9945FF] bg-clip-text text-transparent">
-  Installation
-</h2>
+<div className="px-6 mb-12">
+  <h2 className="text-3xl font-bold text-left mb-8 bg-gradient-to-r from-[#14F195] to-[#9945FF] bg-clip-text text-transparent">
+    Installation
+  </h2>
+  
+  <div className="flex flex-col gap-6">
+    <div className="bg-fd-muted/30 rounded-lg p-6 border border-fd-border/50">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Install LiteSVM Core Library</h3>
+          <p className="text-sm text-fd-muted-foreground">Essential testing framework</p>
+        </div>
+        <a
+          href="https://crates.io/crates/litesvm"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2 py-1 bg-fd-background hover:bg-fd-muted rounded text-xs font-medium transition-colors flex items-center gap-1"
+        >
+          📦 crates.io
+        </a>
+      </div>
+      ```bash
+      cargo add --dev litesvm
+      ```
+    </div>
 
-<Tabs items={['Basic', 'With SPL Token Support']}>
-<Tab value="Basic">
-```bash
-cargo add --dev litesvm
-```
-</Tab>
+    <div className="bg-fd-muted/30 rounded-lg p-6 border border-fd-border/50">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Add SPL Token Support</h3>
+          <p className="text-sm text-fd-muted-foreground">Token program utilities</p>
+        </div>
+        <a
+          href="https://crates.io/crates/litesvm-token"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2 py-1 bg-fd-background hover:bg-fd-muted rounded text-xs font-medium transition-colors flex items-center gap-1"
+        >
+          📦 crates.io
+        </a>
+      </div>
+      ```bash
+      cargo add --dev litesvm-token
+      ```
+    </div>
 
-<Tab value="With SPL Token Support">
-```bash
-cargo add --dev litesvm
-cargo add --dev litesvm-token
-```
-</Tab>
-</Tabs>
+  </div>
+</div>
 
 <div className="flex gap-4 flex-wrap justify-center mt-12 mb-12">
   <a

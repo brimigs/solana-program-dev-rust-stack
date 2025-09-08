@@ -220,11 +220,12 @@ let sim_result = svm.simulate_transaction(tx.clone());
 match sim_result {
     Ok(info) => {
         println!("Simulation successful");
-        println!("Would use {} CUs", info.meta.compute_units_consumed);
+        // Access simulation info fields
         // State is NOT modified
     }
     Err(e) => {
         println!("Would fail with: {:?}", e.err);
+        println!("Failure logs: {:?}", e.meta.logs);
     }
 }
 
@@ -429,7 +430,7 @@ proptest! {
 
 ## Common Gotchas
 
-1. **Programs must be deployed before use** - Even system programs need `add_program()`
+1. **Custom programs must be deployed before use** - Use `add_program()` for your own programs
 2. **Blockhashes expire after `expire_blockhash()`** - Get fresh ones with `latest_blockhash()`
 3. **State persists between transactions** - Unlike real validators, no automatic cleanup
 4. **No parallel execution** - Transactions execute sequentially

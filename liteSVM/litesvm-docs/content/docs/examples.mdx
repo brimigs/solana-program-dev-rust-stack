@@ -226,7 +226,7 @@ fn test_insufficient_funds_error() {
 
 ```rust title="tests/spl_token_test.rs"
 use litesvm::LiteSVM;
-use litesvm_token::{CreateToken, MintTo, CreateTokenAccount};
+use litesvm_token::{CreateMint, MintTo, CreateAccount};
 use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
@@ -245,13 +245,13 @@ fn test_spl_token_operations() {
     
     // Create mint
     let mint = Keypair::new();
-    let create_mint_ix = CreateToken::new(
+    let create_mint_ix = CreateMint::new(
         &authority.pubkey(),
         &mint.pubkey(),
         &authority.pubkey(),
         None,
         9, // 9 decimals
-    );
+    ).instruction();
     
     let tx = Transaction::new_signed_with_payer(
         &[create_mint_ix],
@@ -264,12 +264,12 @@ fn test_spl_token_operations() {
     
     // Create token account for user
     let token_account = Keypair::new();
-    let create_account_ix = CreateTokenAccount::new(
+    let create_account_ix = CreateAccount::new(
         &authority.pubkey(),
         &token_account.pubkey(),
         &mint.pubkey(),
         &user.pubkey(),
-    );
+    ).instruction();
     
     let tx = Transaction::new_signed_with_payer(
         &[create_account_ix],
@@ -286,7 +286,7 @@ fn test_spl_token_operations() {
         &token_account.pubkey(),
         &authority.pubkey(),
         1_000_000_000, // 1 token (with 9 decimals)
-    );
+    ).instruction();
     
     let tx = Transaction::new_signed_with_payer(
         &[mint_ix],
